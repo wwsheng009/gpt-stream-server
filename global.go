@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	api_proxy string
-	http_port string
-	http_host string
+	api_proxy     string
+	http_port     string
+	http_host     string
+	static_folder string
 }
 
 var config = Config{}
@@ -32,6 +33,10 @@ func Init_config() {
 	config.http_host = os.Getenv("HTTP_HOST")
 	if len(config.http_port) == 0 {
 		config.http_port = "8080"
+	}
+	config.static_folder = os.Getenv("STATIC_FOLDER")
+	if len(config.static_folder) == 0 {
+		config.static_folder = "./public"
 	}
 
 }

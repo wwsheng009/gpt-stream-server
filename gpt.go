@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -38,18 +39,37 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+"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")
 
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		return
 	}
+
+	if resp.StatusCode != 200 {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error reading response:", err)
+			return
+		}
+
+		var res ErrorResponse
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			fmt.Println("Error reading response:", err)
+			writeError(w, err)
+			return
+		} else {
+			resp.Body.Close()
+			writeError(w, fmt.Errorf("%s", res.Error.Message))
+			return
+		}
+	}
 	reader := bufio.NewReader(resp.Body)
 	defer resp.Body.Close()
 
 	// 从另一个Stream API的响应中读取数据并发送给客户端
-
 	// lastline := []byte{}
 	for {
 		select {
@@ -62,21 +82,13 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 				writeError(w, err)
 				return
 			}
+			line = bytes.TrimSpace(line)
 			if len(line) == 1 && line[0] == '\n' {
 				continue
 			}
-			// if line[len(line)-2] != '}' {
-			// 	lastline = line
-			// 	continue
-			// }
-			// if len(lastline) > 0 {
-			// 	line = append(lastline, line...)
-			// 	lastline = []byte{}
-			// }
-			// make sure there isn't any extra whitespace before or after
-			line = bytes.TrimSpace(line)
 			// the completion API only returns data events
 			if !bytes.HasPrefix(line, dataPrefix) {
+				// lastline = append(lastline, line...)
 				continue
 			}
 			line = bytes.TrimPrefix(line, dataPrefix)
@@ -92,6 +104,7 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				// lastline = line
 				// fmt.Println("Error reading response:", err)
+				writeError(w, err)
 				continue
 			}
 			if res.Choices[0].Text == "" && res.Choices[0].FinishReason == "stop" {
@@ -99,9 +112,6 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeMessage(w, res.Choices[0].Text)
-			// fmt.Fprintf(w, `{"code":200,"message":"%s"}`, res.Choices[0].Text)
-			// w.(http.Flusher).Flush()
-			// c.JSON(200, gin.H{"message": res.Choices[0].Text})
 		}
 	}
 
@@ -135,19 +145,39 @@ func processChat(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+"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")
 
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		return
 	}
+
+	if resp.StatusCode != 200 {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error reading response:", err)
+			return
+		}
+
+		var res ErrorResponse
+		err = json.Unmarshal(body, &res)
+		if err != nil {
+			fmt.Println("Error reading response:", err)
+			writeError(w, err)
+			return
+		} else {
+			resp.Body.Close()
+			writeError(w, fmt.Errorf("%s", res.Error.Message))
+			return
+		}
+	}
 	reader := bufio.NewReader(resp.Body)
 	defer resp.Body.Close()
 
 	// 从另一个Stream API的响应中读取数据并发送给客户端
 
-	lastline := []byte{}
+	// lastline := []byte{}
 	for {
 		select {
 		case <-r.Context().Done():
@@ -159,21 +189,13 @@ func processChat(w http.ResponseWriter, r *http.Request) {
 				writeError(w, err)
 				return
 			}
+			// make sure there isn't any extra whitespace before or after
+			line = bytes.TrimSpace(line)
 			if len(line) == 1 && line[0] == '\n' {
 				continue
 			}
-			if line[len(line)-2] != '}' {
-				lastline = line
-				continue
-			}
-			if len(lastline) > 0 {
-				line = append(lastline, line...)
-				lastline = []byte{}
-			}
-			// make sure there isn't any extra whitespace before or after
-			line = bytes.TrimSpace(line)
-			// the completion API only returns data events
 			if !bytes.HasPrefix(line, dataPrefix) {
+				// lastline = append(lastline, line...)
 				continue
 			}
 			line = bytes.TrimPrefix(line, dataPrefix)
@@ -187,16 +209,15 @@ func processChat(w http.ResponseWriter, r *http.Request) {
 			var res ChatResponse
 			err = json.Unmarshal(line, &res)
 			if err != nil {
-				lastline = line
+				// lastline = line
 				// fmt.Println("Error reading response:", err)
+				writeError(w, err)
 				continue
 			}
 			if res.Choices[0].Delta.Content == "" && res.Choices[0].FinishReason == "stop" {
 				return
 			}
 			writeMessage(w, res.Choices[0].Delta.Content)
-			// fmt.Fprintf(w, "%s", res.Choices[0].Delta.Content)
-			// w.(http.Flusher).Flush()
 		}
 	}
 }
