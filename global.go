@@ -12,6 +12,7 @@ type Config struct {
 	http_port     string
 	http_host     string
 	static_folder string
+	openai_key    string
 }
 
 var config = Config{}
@@ -31,6 +32,7 @@ func Init_config() {
 	config.api_proxy = os.Getenv("API_SERVER")
 	config.http_port = os.Getenv("HTTP_PORT")
 	config.http_host = os.Getenv("HTTP_HOST")
+
 	if len(config.http_port) == 0 {
 		config.http_port = "8080"
 	}
@@ -38,5 +40,7 @@ func Init_config() {
 	if len(config.static_folder) == 0 {
 		config.static_folder = "./public"
 	}
+
+	config.openai_key = os.Getenv("OPENAI_KEY")
 
 }

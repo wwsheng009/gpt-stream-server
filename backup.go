@@ -34,7 +34,7 @@ func _processChat_backup(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+config.openai_key)
 
 	resp, err := client.Do(req)
 	if err != nil {

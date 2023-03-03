@@ -39,7 +39,7 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+config.openai_key)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -117,14 +117,14 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func processChat(w http.ResponseWriter, r *http.Request) {
+func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 
 	var dataPrefix = []byte("data: ")
 	var doneSequence = []byte("[DONE]")
 	// 创建一个HTTP客户端
 	client := &http.Client{}
 
-	var content = "use js to write a program post user login info to background api server"
+	var content = option.Prompt
 	// content = "讲出你的名字"
 	request := ChatRequest{
 		Model:    "gpt-3.5-turbo",
@@ -145,7 +145,7 @@ func processChat(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+"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")
+	req.Header.Set("Authorization", "Bearer "+config.openai_key)
 
 	resp, err := client.Do(req)
 	if err != nil {

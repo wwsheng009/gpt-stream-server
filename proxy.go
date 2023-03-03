@@ -44,7 +44,7 @@ func proxyHandler(c *gin.Context) {
 func apiProxy(c *gin.Context) {
 	path := c.Param("proxyPath")
 	if path == "/chat-process" && c.Request.Method == "POST" {
-		gpt3client(c)
+		streamHandler(c)
 		return
 	}
 	remote, err := url.Parse(config.api_proxy)

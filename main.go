@@ -13,7 +13,7 @@ func main() {
 	r := gin.Default()
 
 	r.POST("/stream", streamHandler)
-	r.POST("/chat-process", gpt3client)
+	r.POST("/chat-process", streamHandler)
 
 	if len(config.api_proxy) > 0 {
 		r.Any("/api/*proxyPath", apiProxy)

@@ -20,24 +20,21 @@ func streamHandler(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 
 	// 读取请求体
+	var jsonBody = new(JsonBody)
+	if c.Request.Method == "POST" {
+		// 解析JSON
+		err := c.ShouldBindJSON(jsonBody)
+		if err != nil {
+			// 处理错误
+			c.JSON(400, gin.H{"message": err.Error()})
+			return
+		}
 
-	// if c.Request.Method == "POST" {
-	// 解析JSON
-	// var jsonBody map[string]interface{}
-	// err := c.ShouldBindJSON(jsonBody)
-	// if err != nil {
-	// 	// 处理错误
-	// 	return
-	// }
-	// if _, has := jsonBody["message"]; !has {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": "message is empty"})
-	// 	return
-	// }
-	// }
+	}
 
 	// processComplete(c.Writer, c.Request)
 
-	processChat(c.Writer, c.Request)
+	processChat(c.Writer, c.Request, *jsonBody)
 	// 处理请求
 }
 
@@ -46,7 +43,7 @@ type JsonBody struct {
 }
 
 func gpt3client(c *gin.Context) {
-	var config = gogpt.DefaultConfig("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")
+	var config = gogpt.DefaultConfig(config.openai_key)
 
 	var client = gogpt.NewClientWithConfig(config)
 
@@ -76,6 +73,8 @@ func gpt3client(c *gin.Context) {
 	}
 	defer stream.Close()
 	for {
+
+		//2023-3-3 这个库存在问题，如果调用接口异常出错，没有判断，也没有返回错误
 		response, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			fmt.Println("Stream finished")
