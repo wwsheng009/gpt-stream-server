@@ -24,11 +24,13 @@ func RemoteRequest(payload PayloadRequest) (interface{}, error) {
 	if config.MainConfig.ApiServer == "" {
 		return nil, errors.New("代理地址为空，请配置环境变量YAO_APP_PROXY_ENDPOINT")
 	}
+	url := config.MainConfig.ApiServer + "/proxy/call"
+	// println("url:", url)
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", config.MainConfig.ApiServer+"/ai/proxy/call", bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +56,9 @@ func RemoteRequest(payload PayloadRequest) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	// if resp.StatusCode != http.StatusOK {
-	// 	return nil, fmt.Errorf("远程程序执行异常:代码:%d,消息：%s", resp.StatusCode, res["message"])
-	// }
+	if res["message"] != "" && res["code"] != 200 {
+		return nil, fmt.Errorf("远程程序执行异常:代码:%d,消息：%s", resp.StatusCode, res["message"])
+	}
 	return res["data"], nil
 }
 

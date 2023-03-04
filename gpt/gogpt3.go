@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gpt_stream_server/chatdb"
 	"gpt_stream_server/config"
 	"io"
 	"net/http"
@@ -29,17 +30,27 @@ func StreamHandler(c *gin.Context) {
 			c.JSON(400, gin.H{"message": err.Error()})
 			return
 		}
+		//new conversation
+		var conversation chatdb.Conversation //{}
+		if jsonBody.Option.ConversationId == "" {
+			conversation = chatdb.CreateNewconversation(jsonBody.Prompt)
+		} else {
+			conversation = chatdb.FindConversationById(jsonBody.Option.ConversationId)
+		}
+		processChat(c.Writer, c.Request, *jsonBody, conversation)
 
 	}
-
 	// processComplete(c.Writer, c.Request)
 
-	processChat(c.Writer, c.Request, *jsonBody)
 	// 处理请求
 }
 
 type JsonBody struct {
 	Prompt string `json:"prompt"`
+	Option struct {
+		ConversationId  string `json:"conversationId"`
+		ParentMessageId string `json:"parentMessageId"`
+	} `json:"options"`
 }
 
 func gpt3client(c *gin.Context) {

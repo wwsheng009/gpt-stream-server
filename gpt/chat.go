@@ -47,6 +47,7 @@ type ChatResponse struct {
 	Created int                  `json:"created"`
 	Model   string               `json:"model"`
 	Choices []ChatResponseChoice `json:"choices"`
+	Error   *APIError            `json:"error,omitempty"`
 }
 
 // EnginesResponse is returned from the Engines API

@@ -1,7 +1,6 @@
-package setting
+package chatdb
 
 import (
-	"encoding/json"
 	"gpt_stream_server/yao"
 	"strings"
 	"time"
@@ -45,23 +44,16 @@ type ApiSetting struct {
 	N                int         `json:"n"`
 }
 
-func LoadApiSetting() *ApiSetting {
+func LoadApiSetting() ApiSetting {
 
 	obj, err := yao.YaoProcess("scripts.ai.chatgpt.GetSetting")
 	if err != nil {
 		panic(err.Error())
 	}
-
-	d, err := json.Marshal(obj)
+	setting := ApiSetting{}
+	err = ConvertData(obj, &setting)
 	if err != nil {
 		panic(err.Error())
 	}
-	setting := new(ApiSetting)
-	err = json.Unmarshal(d, setting)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// fmt.Println(setting.ApiToken)
 	return setting
 }

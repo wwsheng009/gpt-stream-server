@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"gpt_stream_server/chatdb"
 	"gpt_stream_server/config"
-	"gpt_stream_server/setting"
 	"io"
 	"log"
 	"net/http"
@@ -121,7 +122,8 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
+func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
+	converation chatdb.Conversation) {
 
 	var dataPrefix = []byte("data: ")
 	var doneSequence = []byte("[DONE]")
@@ -141,21 +143,38 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 		client.Transport = transport
 	}
 
-	var setting = setting.LoadApiSetting()
-	var temp = setting.Temperature
-	var content = option.Prompt
+	var chatdb = chatdb.LoadApiSetting()
+	var temp = chatdb.Temperature
+	var prompt = option.Prompt
+	stopWord := []string{}
+	if chatdb.Stop != "" {
+		stopWord = append(stopWord, strings.Split(chatdb.Stop, ",")...)
+	}
+	messages := []Message{{Role: "system", Content: "you are assistant"}}
+	if len(converation.Messages) > 0 {
+		for _, message := range converation.Messages {
+			if message.Prompt != "" {
+				messages = append(messages, Message{Role: "user", Content: message.Prompt})
+			}
+			if message.Completion != "" {
+				messages = append(messages, Message{Role: "assistant", Content: message.Completion})
+			}
+		}
+	}
+	messages = append(messages, Message{Role: "user", Content: prompt})
+
 	// content = "讲出你的名字"
 	request := ChatRequest{
-		Model:            setting.Model, //"gpt-3.5-turbo",
-		Messages:         []Message{{Role: "system", Content: "you are assistant"}, {Role: "user", Content: content}},
+		Model:            chatdb.Model, //"gpt-3.5-turbo",
+		Messages:         messages,
 		Stream:           true,
-		Stop:             strings.Split(setting.Stop, ","),
-		MaxTokens:        &setting.MaxTokens,
+		Stop:             stopWord,
+		MaxTokens:        &chatdb.MaxTokens,
 		Temperature:      &temp,
-		TopP:             &setting.TopP,
-		PresencePenalty:  setting.PresencePenalty,
-		FrequencyPenalty: setting.FrequencyPenalty,
-		N:                &setting.N,
+		TopP:             &chatdb.TopP,
+		PresencePenalty:  chatdb.PresencePenalty,
+		FrequencyPenalty: chatdb.FrequencyPenalty,
+		N:                &chatdb.N,
 	}
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(request)
@@ -171,7 +190,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+setting.ApiToken) //config.MainConfig.OpenaiKey)
+	req.Header.Set("Authorization", "Bearer "+chatdb.ApiToken) //config.MainConfig.OpenaiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -204,9 +223,13 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 	// 从另一个Stream API的响应中读取数据并发送给客户端
 
 	// lastline := []byte{}
+	answser := ""
+	writeConversationId(w, converation.ConversationId)
+
 	for {
 		select {
 		case <-r.Context().Done():
+			SaveText(converation.Id, prompt, answser)
 			return
 		default:
 			line, err := reader.ReadSlice('\n')
@@ -229,6 +252,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 			// the stream is completed when terminated by [DONE]
 			if bytes.HasPrefix(line, doneSequence) {
 				writeDone(w)
+				SaveText(converation.Id, prompt, answser)
 				break
 			}
 
@@ -240,10 +264,35 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 				writeError(w, err)
 				continue
 			}
-			if res.Choices[0].Delta.Content == "" && res.Choices[0].FinishReason == "stop" {
-				return
+			if len(res.Choices) > 0 {
+				text := res.Choices[0].Delta.Content
+				if text == "" && res.Choices[0].FinishReason == "stop" {
+					SaveText(converation.Id, prompt, answser)
+					return
+				}
+				writeMessage(w, text)
+				answser += text
+			} else {
+				if res.Error.Message != "" {
+					writeError(w, errors.New(res.Error.Message))
+				}
 			}
-			writeMessage(w, res.Choices[0].Delta.Content)
 		}
 	}
+
+}
+
+func writeConversationId(w http.ResponseWriter, s string) {
+	fmt.Fprintf(w, `{"conversationId":"%s"}`, s)
+	w.Write([]byte("\n"))
+	w.WriteHeader(http.StatusOK)
+	w.(http.Flusher).Flush()
+}
+
+func SaveText(conversationId int32, prompt, text string) {
+	if len(text) == 0 {
+		return
+	}
+	// println(text)
+	chatdb.CreateNewMessage(conversationId, prompt, text)
 }

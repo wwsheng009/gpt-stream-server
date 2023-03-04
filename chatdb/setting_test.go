@@ -1,4 +1,4 @@
-package setting
+package chatdb
 
 import (
 	"gpt_stream_server/config"
