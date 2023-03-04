@@ -1,4 +1,4 @@
-package main
+package gpt
 
 type Message struct {
 	Role    string `json:"role"`

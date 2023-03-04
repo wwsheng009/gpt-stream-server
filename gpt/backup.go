@@ -1,9 +1,10 @@
-package main
+package gpt
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gpt_stream_server/config"
 	"log"
 	"net/http"
 	"strings"
@@ -34,7 +35,7 @@ func _processChat_backup(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+config.openai_key)
+	req.Header.Set("Authorization", "Bearer "+config.MainConfig.OpenaiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {

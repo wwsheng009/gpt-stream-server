@@ -1,13 +1,17 @@
-package main
+package gpt
 
 import (
 	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gpt_stream_server/config"
+	"gpt_stream_server/setting"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 func processComplete(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +43,7 @@ func processComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+config.openai_key)
+	req.Header.Set("Authorization", "Bearer "+config.MainConfig.OpenaiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -121,15 +125,37 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 
 	var dataPrefix = []byte("data: ")
 	var doneSequence = []byte("[DONE]")
-	// 创建一个HTTP客户端
+
 	client := &http.Client{}
 
+	// golang add network proxy
+	// 创建一个HTTP客户端
+
+	if config.MainConfig.ProxyServer != "" {
+		// Set up the proxy URL
+		proxyUrl, _ := url.Parse(config.MainConfig.ProxyServer)
+		// Create the HTTP transport with the proxy and other options
+		transport := &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
+		}
+		client.Transport = transport
+	}
+
+	var setting = setting.LoadApiSetting()
+	var temp = setting.Temperature
 	var content = option.Prompt
 	// content = "讲出你的名字"
 	request := ChatRequest{
-		Model:    "gpt-3.5-turbo",
-		Messages: []Message{{Role: "system", Content: "you are assistant"}, {Role: "user", Content: content}},
-		Stream:   true,
+		Model:            setting.Model, //"gpt-3.5-turbo",
+		Messages:         []Message{{Role: "system", Content: "you are assistant"}, {Role: "user", Content: content}},
+		Stream:           true,
+		Stop:             strings.Split(setting.Stop, ","),
+		MaxTokens:        &setting.MaxTokens,
+		Temperature:      &temp,
+		TopP:             &setting.TopP,
+		PresencePenalty:  setting.PresencePenalty,
+		FrequencyPenalty: setting.FrequencyPenalty,
+		N:                &setting.N,
 	}
 	var buf bytes.Buffer
 	err := json.NewEncoder(&buf).Encode(request)
@@ -145,7 +171,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody) {
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+config.openai_key)
+	req.Header.Set("Authorization", "Bearer "+setting.ApiToken) //config.MainConfig.OpenaiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {

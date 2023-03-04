@@ -1,4 +1,4 @@
-package main
+package gpt
 
 // APIError provides error information returned by the OpenAI API.
 type APIError struct {

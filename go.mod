@@ -1,4 +1,4 @@
-module stream-server
+module gpt_stream_server
 
 go 1.20
 

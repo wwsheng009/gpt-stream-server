@@ -1,4 +1,4 @@
-package main
+package gpt
 
 // CompletionRequest is a request for the completions API
 type CompletionRequest struct {

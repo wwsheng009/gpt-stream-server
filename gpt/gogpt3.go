@@ -1,9 +1,10 @@
-package main
+package gpt
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"gpt_stream_server/config"
 	"io"
 	"net/http"
 
@@ -11,8 +12,7 @@ import (
 	gogpt "github.com/sashabaranov/go-gpt3"
 )
 
-func streamHandler(c *gin.Context) {
-
+func StreamHandler(c *gin.Context) {
 	// 设置响应头
 	c.Writer.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -43,7 +43,7 @@ type JsonBody struct {
 }
 
 func gpt3client(c *gin.Context) {
-	var config = gogpt.DefaultConfig(config.openai_key)
+	var config = gogpt.DefaultConfig(config.MainConfig.OpenaiKey)
 
 	var client = gogpt.NewClientWithConfig(config)
 

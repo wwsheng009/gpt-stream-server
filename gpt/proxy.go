@@ -1,7 +1,8 @@
-package main
+package gpt
 
 import (
 	"bytes"
+	"gpt_stream_server/config"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -10,7 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func proxyHandler(c *gin.Context) {
+// request another http resource in gin route
+func _http_request(c *gin.Context) {
 	// Create a new request to the target server
 	targetURL := "https://example.com"
 	req, err := http.NewRequest("GET", targetURL, bytes.NewBuffer([]byte{}))
@@ -41,13 +43,14 @@ func proxyHandler(c *gin.Context) {
 	c.Data(resp.StatusCode, resp.Header.Get("Content-Type"), body)
 }
 
-func apiProxy(c *gin.Context) {
+// pass through the api request to api server
+func ApiProxy(c *gin.Context) {
 	path := c.Param("proxyPath")
 	if path == "/chat-process" && c.Request.Method == "POST" {
-		streamHandler(c)
+		StreamHandler(c)
 		return
 	}
-	remote, err := url.Parse(config.api_proxy)
+	remote, err := url.Parse(config.MainConfig.ApiServer)
 	if err != nil {
 		panic(err)
 	}
@@ -78,5 +81,4 @@ func errorHandler(http.ResponseWriter, *http.Request, error) {
 }
 func modifyResponse(*http.Response) error {
 	return nil
-
 }
