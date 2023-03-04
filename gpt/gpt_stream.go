@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func processComplete(w http.ResponseWriter, r *http.Request) {
@@ -182,6 +183,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 		log.Fatal(err)
 	}
 
+	start := time.Now()
 	// 发送另一个Stream API的请求
 	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", &buf)
 	if err != nil {
@@ -229,7 +231,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 	for {
 		select {
 		case <-r.Context().Done():
-			SaveText(converation.Id, prompt, answser)
+			SaveText(converation.Id, prompt, answser, start)
 			return
 		default:
 			line, err := reader.ReadSlice('\n')
@@ -252,7 +254,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 			// the stream is completed when terminated by [DONE]
 			if bytes.HasPrefix(line, doneSequence) {
 				writeDone(w)
-				SaveText(converation.Id, prompt, answser)
+				SaveText(converation.Id, prompt, answser, start)
 				break
 			}
 
@@ -267,7 +269,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 			if len(res.Choices) > 0 {
 				text := res.Choices[0].Delta.Content
 				if text == "" && res.Choices[0].FinishReason == "stop" {
-					SaveText(converation.Id, prompt, answser)
+					SaveText(converation.Id, prompt, answser, start)
 					return
 				}
 				writeMessage(w, text)
@@ -289,10 +291,14 @@ func writeConversationId(w http.ResponseWriter, s string) {
 	w.(http.Flusher).Flush()
 }
 
-func SaveText(conversationId int32, prompt, text string) {
+func SaveText(conversationId int32, prompt, text string, start time.Time) {
 	if len(text) == 0 {
 		return
 	}
+
+	end := time.Now()
+	delta := end.Sub(start)
+
 	// println(text)
-	chatdb.CreateNewMessage(conversationId, prompt, text)
+	chatdb.CreateNewMessage(conversationId, prompt, text, delta.Seconds())
 }

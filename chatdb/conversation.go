@@ -42,12 +42,13 @@ func FindConversationById(conversationId string) Conversation {
 	return conversation
 }
 
-func CreateNewMessage(conversationId int32, prompt string, answer string) {
+func CreateNewMessage(conversationId int32, prompt string, answer string, seconds float64) {
 
 	request := map[string]interface{}{
 		"conversationId": conversationId,
 		"prompt":         prompt,
 		"answer":         answer,
+		"seconds":        seconds,
 	}
 	_, err := yao.YaoProcess("scripts.chat.conversation.NewMessageApi", request)
 	if err != nil {
