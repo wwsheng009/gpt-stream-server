@@ -50,6 +50,7 @@ func ApiProxy(c *gin.Context) {
 		StreamHandler(c)
 		return
 	}
+	//其它的请求直接传到后端
 	remote, err := url.Parse(config.MainConfig.ApiServer)
 	if err != nil {
 		panic(err)

@@ -33,6 +33,7 @@ type Config struct {
 	OpenaiKey string `json:"openai_key"`
 	//use network proxy
 	ProxyServer string `json:"proxy_server"`
+	Storage     string `json:"storeage"`
 }
 
 var MainConfig = Config{}
@@ -80,5 +81,6 @@ func LoadConfigFromEnv(cfg *Config) error {
 	cfg.StaticFolder, _ = os.LookupEnv("STATIC_FOLDER")
 	cfg.OpenaiKey, _ = os.LookupEnv("OPENAI_KEY")
 	cfg.ProxyServer, _ = os.LookupEnv("PROXY_SERVER")
+	cfg.Storage, _ = os.LookupEnv("STORAGE")
 	return nil
 }

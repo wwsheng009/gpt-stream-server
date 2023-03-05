@@ -16,7 +16,7 @@ import (
 )
 
 func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
-	converation chatdb.Conversation) {
+	converation *chatdb.Conversation) {
 
 	prompt := option.Prompt
 	var dataPrefix = []byte("data: ")
@@ -26,7 +26,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 
 	// golang add network proxy
 	// 创建一个HTTP客户端
-
 	if config.MainConfig.ProxyServer != "" {
 		// Set up the proxy URL
 		proxyUrl, _ := url.Parse(config.MainConfig.ProxyServer)
@@ -101,7 +100,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	for {
 		select {
 		case <-r.Context().Done():
-			SaveText(converation.Id, prompt, answser, start)
+			SaveText(converation, prompt, answser, start)
 			return
 		default:
 			line, err := reader.ReadSlice('\n')
@@ -127,7 +126,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 			// the stream is completed when terminated by [DONE]
 			if bytes.HasPrefix(line, doneSequence) {
 				// writeDone(w)
-				SaveText(converation.Id, prompt, answser, start)
+				SaveText(converation, prompt, answser, start)
 				break
 			}
 			text, err := processLine(isChat, line)
@@ -141,14 +140,14 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	}
 
 }
-func getRequestBuf(isChat bool, prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+func getRequestBuf(isChat bool, prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	if isChat {
 		return getChatBuf(prompt, chatdb, converation)
 	} else {
 		return getCompletionBuf(prompt, chatdb, converation)
 	}
 }
-func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	var temp = chatdb.Temperature
 	stopWord := []string{}
 	if chatdb.Stop != "" {
@@ -205,7 +204,7 @@ func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation chatd
 	return buf, nil
 
 }
-func getChatBuf(prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+func getChatBuf(prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	var temp = chatdb.Temperature
 	stopWord := []string{}
 	if chatdb.Stop != "" {
@@ -296,7 +295,7 @@ func writeConversationId(w http.ResponseWriter, s string) {
 	w.(http.Flusher).Flush()
 }
 
-func SaveText(conversationId int32, prompt, text string, start time.Time) {
+func SaveText(converation *chatdb.Conversation, prompt, text string, start time.Time) {
 	if len(text) == 0 {
 		return
 	}
@@ -305,5 +304,5 @@ func SaveText(conversationId int32, prompt, text string, start time.Time) {
 	delta := end.Sub(start)
 
 	// println(text)
-	chatdb.CreateNewMessage(conversationId, prompt, text, delta.Seconds())
+	chatdb.GetDefaultConversation().CreateNewMessage(converation, prompt, text, delta.Seconds())
 }

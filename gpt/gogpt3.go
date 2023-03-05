@@ -44,12 +44,19 @@ func StreamHandler(c *gin.Context) {
 			c.JSON(400, gin.H{"message": err.Error()})
 			return
 		}
+		conv := chatdb.GetDefaultConversation()
 		//new conversation
-		var conversation chatdb.Conversation //{}
+		var conversation = new(chatdb.Conversation) //{}
 		if payload.Option.ConversationId == "" {
-			conversation = chatdb.CreateNewconversation(payload.Prompt)
+			conversation, err = conv.CreateNewconversation(payload.Prompt)
+			if err != nil {
+				c.JSON(403, gin.H{"message": err.Error()})
+			}
 		} else {
-			conversation = chatdb.FindConversationById(payload.Option.ConversationId)
+			conversation, err = conv.FindConversationById(payload.Option.ConversationId)
+			if err != nil {
+				c.JSON(403, gin.H{"message": err.Error()})
+			}
 		}
 		processRequest(c.Writer, c.Request, *payload, conversation)
 
@@ -61,7 +68,7 @@ func StreamHandler(c *gin.Context) {
 	// 处理请求
 }
 
-func gpt3client(c *gin.Context) {
+func _gpt3client(c *gin.Context) {
 	var config = gogpt.DefaultConfig(config.MainConfig.OpenaiKey)
 
 	var client = gogpt.NewClientWithConfig(config)

@@ -13,7 +13,7 @@ content-type: application/json
 {
     "prompt": "中国的",
     "options":{
-        "conversationId":"d9a8eb79-da42-4076-93df-59cdaeda46cb"
+        "conversationId":"d060898e-09fb-46c2-b14c-3e7662976000"
     }
 }
 
@@ -26,7 +26,7 @@ content-type: application/json
 {
     "prompt": "第一个",
     "options":{
-        "conversationId":"206f503b-a946-4d44-bdf5-1e7b565bf6f2"
+        "conversationId":"d060898e-09fb-46c2-b14c-3e7662976000"
     }
 }
 

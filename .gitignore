@@ -2,3 +2,4 @@ __debug_bin
 public
 .env
 gpt_stream_server
+gpt.config.json

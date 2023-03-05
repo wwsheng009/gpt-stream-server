@@ -1,7 +1,9 @@
 package chatdb
 
 import (
+	"fmt"
 	"gpt_stream_server/yao"
+	"os"
 	"strings"
 	"time"
 )
@@ -56,4 +58,22 @@ func LoadApiSetting() ApiSetting {
 		panic(err.Error())
 	}
 	return setting
+}
+
+func LoadLocalApiSetting() (*ApiSetting, error) {
+	if _, err := os.Stat("path/to/file"); os.IsNotExist(err) {
+		fmt.Println("File does not exist")
+		return nil, err
+	}
+	data, err := os.ReadFile("./gpt.config.json")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return nil, err
+	}
+	setting := ApiSetting{}
+	err = ConvertData(data, &setting)
+	if err != nil {
+		return nil, err
+	}
+	return &setting, nil
 }

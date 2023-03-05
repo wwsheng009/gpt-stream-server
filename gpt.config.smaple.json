@@ -1,0 +1,21 @@
+{
+  "access_count": 0,
+  "ai_nickname": "AI智能助理",
+  "api_token": "sk-",
+  "created_at": "2023-02-28 12:02:09",
+  "default": true,
+  "deleted_at": null,
+  "description": "ai辅助",
+  "frequency_penalty": 0,
+  "id": 1,
+  "max_send_lines": 6,
+  "max_tokens": 2048,
+  "model": "gpt-3.5-turbo-0301",
+  "n": 1,
+  "presence_penalty": 0,
+  "stop": "",
+  "temperature": 0.5,
+  "top_p": 1,
+  "updated_at": "2023-03-05 11:50:47",
+  "user_nickname": "用户"
+}
