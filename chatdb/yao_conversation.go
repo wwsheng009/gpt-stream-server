@@ -8,6 +8,20 @@ import (
 type YaoConversation struct {
 }
 
+func (y *YaoConversation) LoadApiSetting() (*ApiSetting, error) {
+
+	obj, err := yao.YaoProcess("scripts.ai.chatgpt.GetSetting")
+	if err != nil {
+		panic(err.Error())
+	}
+	setting := ApiSetting{}
+	err = ConvertData(obj, &setting)
+	if err != nil {
+		panic(err.Error())
+	}
+	return &setting, nil
+}
+
 func (y *YaoConversation) CreateNewconversation(title string) (*Conversation, error) {
 	obj, err := yao.YaoProcess("scripts.chat.conversation.NewConversation", title)
 	if err != nil {

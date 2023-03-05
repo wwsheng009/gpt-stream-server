@@ -30,11 +30,6 @@ func StreamHandler(c *gin.Context) {
 
 	// 读取请求体
 	var payload = new(RequestBody)
-	// b, err := io.ReadAll(c.Request.Body)
-	// if err != nil {
-	// 	println(err.Error())
-	// }
-	// println(string(b))
 
 	if c.Request.Method == "POST" {
 		// 解析JSON
@@ -42,26 +37,35 @@ func StreamHandler(c *gin.Context) {
 		if err != nil {
 			// 处理错误
 			c.JSON(400, gin.H{"message": err.Error()})
-			return
+			c.Abort()
 		}
 		conv := chatdb.GetDefaultConversation()
+		setting, err := conv.LoadApiSetting()
+		if err != nil {
+			c.JSON(403, gin.H{"message": err.Error()})
+			c.Abort()
+		}
+
 		//new conversation
 		var conversation = new(chatdb.Conversation) //{}
 		if payload.Option.ConversationId == "" {
 			conversation, err = conv.CreateNewconversation(payload.Prompt)
 			if err != nil {
 				c.JSON(403, gin.H{"message": err.Error()})
+				c.Abort()
 			}
 		} else {
 			conversation, err = conv.FindConversationById(payload.Option.ConversationId)
 			if err != nil {
 				c.JSON(403, gin.H{"message": err.Error()})
+				c.Abort()
 			}
 		}
-		processRequest(c.Writer, c.Request, *payload, conversation)
+		processRequest(c.Writer, c.Request, *payload, conversation, setting)
 
 	} else {
 		c.JSON(403, gin.H{"message": errors.New("no support")})
+		return
 	}
 	// processComplete(c.Writer, c.Request)
 

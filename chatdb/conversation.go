@@ -3,6 +3,7 @@ package chatdb
 import "gpt_stream_server/config"
 
 type IConversation interface {
+	LoadApiSetting() (*ApiSetting, error)
 	CreateNewconversation(title string) (*Conversation, error)
 	FindConversationById(conversationId string) (*Conversation, error)
 	CreateNewMessage(converation *Conversation, prompt string, answer string, seconds float64) error

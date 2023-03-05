@@ -1,9 +1,6 @@
 package chatdb
 
 import (
-	"fmt"
-	"gpt_stream_server/yao"
-	"os"
 	"strings"
 	"time"
 )
@@ -44,36 +41,4 @@ type ApiSetting struct {
 	UpdatedAt        CustomTime  `json:"updated_at"`
 	UserNickname     string      `json:"user_nickname"`
 	N                int         `json:"n"`
-}
-
-func LoadApiSetting() ApiSetting {
-
-	obj, err := yao.YaoProcess("scripts.ai.chatgpt.GetSetting")
-	if err != nil {
-		panic(err.Error())
-	}
-	setting := ApiSetting{}
-	err = ConvertData(obj, &setting)
-	if err != nil {
-		panic(err.Error())
-	}
-	return setting
-}
-
-func LoadLocalApiSetting() (*ApiSetting, error) {
-	if _, err := os.Stat("path/to/file"); os.IsNotExist(err) {
-		fmt.Println("File does not exist")
-		return nil, err
-	}
-	data, err := os.ReadFile("./gpt.config.json")
-	if err != nil {
-		fmt.Println("Error reading file:", err)
-		return nil, err
-	}
-	setting := ApiSetting{}
-	err = ConvertData(data, &setting)
-	if err != nil {
-		return nil, err
-	}
-	return &setting, nil
 }

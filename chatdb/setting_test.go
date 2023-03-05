@@ -7,6 +7,6 @@ import (
 
 func TestLoadApiSetting(t *testing.T) {
 	config.InitConfig()
-	LoadApiSetting()
+	// LoadApiSetting()
 
 }

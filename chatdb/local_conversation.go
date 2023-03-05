@@ -14,6 +14,21 @@ type LocalConversation struct {
 
 const cacheLocation = "./data/cache"
 
+func (l *LocalConversation) LoadApiSetting() (*ApiSetting, error) {
+
+	data, err := os.ReadFile("./gpt.config.json")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return nil, err
+	}
+	setting := ApiSetting{}
+	err = json.Unmarshal(data, &setting)
+	if err != nil {
+		return nil, err
+	}
+	return &setting, nil
+}
+
 func (l *LocalConversation) Save(uuid string, c *Conversation) {
 
 	fname := path.Join(cacheLocation, uuid) + ".json"

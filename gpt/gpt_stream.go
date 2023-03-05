@@ -16,7 +16,7 @@ import (
 )
 
 func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
-	converation *chatdb.Conversation) {
+	converation *chatdb.Conversation, setting *chatdb.ApiSetting) {
 
 	prompt := option.Prompt
 	var dataPrefix = []byte("data: ")
@@ -36,17 +36,17 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 		client.Transport = transport
 	}
 
-	var chatdb = chatdb.LoadApiSetting()
+	// var chatdb = chatdb.LoadApiSetting()
 
 	isChat := false
 	url := "https://api.openai.com/v1/completions"
-	if strings.Contains(chatdb.Model, "gpt-3.5-turbo") {
+	if strings.Contains(setting.Model, "gpt-3.5-turbo") {
 		isChat = true
 		url = "https://api.openai.com/v1/chat/completions"
 	}
 
 	start := time.Now()
-	buf, err := getRequestBuf(isChat, prompt, chatdb, converation)
+	buf, err := getRequestBuf(isChat, prompt, setting, converation)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -60,7 +60,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+chatdb.ApiToken) //config.MainConfig.OpenaiKey)
+	req.Header.Set("Authorization", "Bearer "+setting.ApiToken) //config.MainConfig.OpenaiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -140,14 +140,14 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	}
 
 }
-func getRequestBuf(isChat bool, prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
+func getRequestBuf(isChat bool, prompt string, chatdb *chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	if isChat {
 		return getChatBuf(prompt, chatdb, converation)
 	} else {
 		return getCompletionBuf(prompt, chatdb, converation)
 	}
 }
-func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
+func getCompletionBuf(prompt string, chatdb *chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	var temp = chatdb.Temperature
 	stopWord := []string{}
 	if chatdb.Stop != "" {
@@ -204,7 +204,7 @@ func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation *chat
 	return buf, nil
 
 }
-func getChatBuf(prompt string, chatdb chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
+func getChatBuf(prompt string, chatdb *chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
 	var temp = chatdb.Temperature
 	stopWord := []string{}
 	if chatdb.Stop != "" {
