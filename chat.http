@@ -1,0 +1,33 @@
+POST http://localhost:8080/api/chat-process HTTP/1.1
+content-type: application/json
+
+{
+    "prompt": "列出旅游景点列表"
+}
+
+###
+
+POST http://localhost:8080/api/chat-process HTTP/1.1
+content-type: application/json
+
+{
+    "prompt": "中国的",
+    "options":{
+        "conversationId":"d9a8eb79-da42-4076-93df-59cdaeda46cb"
+    }
+}
+
+###
+
+
+POST http://localhost:8080/api/chat-process HTTP/1.1
+content-type: application/json
+
+{
+    "prompt": "第一个",
+    "options":{
+        "conversationId":"206f503b-a946-4d44-bdf5-1e7b565bf6f2"
+    }
+}
+
+###

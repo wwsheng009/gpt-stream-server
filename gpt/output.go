@@ -6,6 +6,7 @@ import (
 
 func writeMessage(w http.ResponseWriter, text string) {
 	// fmt.Fprintf(w, `{"status":Success,"data":"%s"}`, text)
+
 	w.Write([]byte(text))
 	// w.WriteHeader(http.StatusOK)
 	w.(http.Flusher).Flush()

@@ -9,123 +9,16 @@ import (
 	"gpt_stream_server/chatdb"
 	"gpt_stream_server/config"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 )
 
-func processComplete(w http.ResponseWriter, r *http.Request) {
-	var dataPrefix = []byte("data: ")
-	var doneSequence = []byte("[DONE]")
-	// 创建一个HTTP客户端
-	client := &http.Client{}
-
-	var tokens = 1024
-	var content = "use js to write a program post user login info to background api server"
-	// content = "讲出你的名字"
-	request := CompletionRequest{
-		Model:     "text-davinci-003",
-		Prompt:    []string{content},
-		MaxTokens: &tokens,
-		Stream:    true,
-	}
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(request)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// 发送另一个Stream API的请求
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/completions", &buf)
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return
-	}
-	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+config.MainConfig.OpenaiKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
-	}
-
-	if resp.StatusCode != 200 {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("Error reading response:", err)
-			return
-		}
-
-		var res ErrorResponse
-		err = json.Unmarshal(body, &res)
-		if err != nil {
-			fmt.Println("Error reading response:", err)
-			writeError(w, err)
-			return
-		} else {
-			resp.Body.Close()
-			writeError(w, fmt.Errorf("%s", res.Error.Message))
-			return
-		}
-	}
-	reader := bufio.NewReader(resp.Body)
-	defer resp.Body.Close()
-
-	// 从另一个Stream API的响应中读取数据并发送给客户端
-	// lastline := []byte{}
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		default:
-			line, err := reader.ReadSlice('\n')
-			if err != nil {
-				fmt.Println("Error reading response:", err)
-				writeError(w, err)
-				return
-			}
-			line = bytes.TrimSpace(line)
-			if len(line) == 1 && line[0] == '\n' {
-				continue
-			}
-			// the completion API only returns data events
-			if !bytes.HasPrefix(line, dataPrefix) {
-				// lastline = append(lastline, line...)
-				continue
-			}
-			line = bytes.TrimPrefix(line, dataPrefix)
-
-			// the stream is completed when terminated by [DONE]
-			if bytes.HasPrefix(line, doneSequence) {
-				writeDone(w)
-				break
-			}
-
-			var res CompletionResponse
-			err = json.Unmarshal(line, &res)
-			if err != nil {
-				// lastline = line
-				// fmt.Println("Error reading response:", err)
-				writeError(w, err)
-				continue
-			}
-			if res.Choices[0].Text == "" && res.Choices[0].FinishReason == "stop" {
-				writeDone(w)
-				return
-			}
-			writeMessage(w, res.Choices[0].Text)
-		}
-	}
-
-}
-
-func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
+func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	converation chatdb.Conversation) {
 
+	prompt := option.Prompt
 	var dataPrefix = []byte("data: ")
 	var doneSequence = []byte("[DONE]")
 
@@ -145,49 +38,25 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 	}
 
 	var chatdb = chatdb.LoadApiSetting()
-	var temp = chatdb.Temperature
-	var prompt = option.Prompt
-	stopWord := []string{}
-	if chatdb.Stop != "" {
-		stopWord = append(stopWord, strings.Split(chatdb.Stop, ",")...)
-	}
-	messages := []Message{{Role: "system", Content: "you are assistant"}}
-	if len(converation.Messages) > 0 {
-		for _, message := range converation.Messages {
-			if message.Prompt != "" {
-				messages = append(messages, Message{Role: "user", Content: message.Prompt})
-			}
-			if message.Completion != "" {
-				messages = append(messages, Message{Role: "assistant", Content: message.Completion})
-			}
-		}
-	}
-	messages = append(messages, Message{Role: "user", Content: prompt})
 
-	// content = "讲出你的名字"
-	request := ChatRequest{
-		Model:            chatdb.Model, //"gpt-3.5-turbo",
-		Messages:         messages,
-		Stream:           true,
-		Stop:             stopWord,
-		MaxTokens:        &chatdb.MaxTokens,
-		Temperature:      &temp,
-		TopP:             &chatdb.TopP,
-		PresencePenalty:  chatdb.PresencePenalty,
-		FrequencyPenalty: chatdb.FrequencyPenalty,
-		N:                &chatdb.N,
-	}
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(request)
-	if err != nil {
-		log.Fatal(err)
+	isChat := false
+	url := "https://api.openai.com/v1/completions"
+	if strings.Contains(chatdb.Model, "gpt-3.5-turbo") {
+		isChat = true
+		url = "https://api.openai.com/v1/chat/completions"
 	}
 
 	start := time.Now()
+	buf, err := getRequestBuf(isChat, prompt, chatdb, converation)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
 	// 发送另一个Stream API的请求
-	req, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", &buf)
+	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
 		fmt.Println("Error creating request:", err)
+		writeError(w, err)
 		return
 	}
 	req.Header.Set("Accept", "text/event-stream; charset=utf-8")
@@ -197,6 +66,7 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Error sending request:", err)
+		writeError(w, err)
 		return
 	}
 
@@ -235,6 +105,9 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 			return
 		default:
 			line, err := reader.ReadSlice('\n')
+			if err == io.EOF {
+				return
+			}
 			if err != nil {
 				fmt.Println("Error reading response:", err)
 				writeError(w, err)
@@ -242,9 +115,9 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 			}
 			// make sure there isn't any extra whitespace before or after
 			line = bytes.TrimSpace(line)
-			if len(line) == 1 && line[0] == '\n' {
-				continue
-			}
+			// if len(line) == 1 && line[0] == '\n' {
+			// 	continue
+			// }
 			if !bytes.HasPrefix(line, dataPrefix) {
 				// lastline = append(lastline, line...)
 				continue
@@ -253,35 +126,167 @@ func processChat(w http.ResponseWriter, r *http.Request, option JsonBody,
 
 			// the stream is completed when terminated by [DONE]
 			if bytes.HasPrefix(line, doneSequence) {
-				writeDone(w)
+				// writeDone(w)
 				SaveText(converation.Id, prompt, answser, start)
 				break
 			}
-
-			var res ChatResponse
-			err = json.Unmarshal(line, &res)
+			text, err := processLine(isChat, line)
 			if err != nil {
-				// lastline = line
-				// fmt.Println("Error reading response:", err)
 				writeError(w, err)
 				continue
 			}
-			if len(res.Choices) > 0 {
-				text := res.Choices[0].Delta.Content
-				if text == "" && res.Choices[0].FinishReason == "stop" {
-					SaveText(converation.Id, prompt, answser, start)
-					return
-				}
-				writeMessage(w, text)
-				answser += text
-			} else {
-				if res.Error.Message != "" {
-					writeError(w, errors.New(res.Error.Message))
-				}
-			}
+			writeMessage(w, text)
+			answser += text
 		}
 	}
 
+}
+func getRequestBuf(isChat bool, prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+	if isChat {
+		return getChatBuf(prompt, chatdb, converation)
+	} else {
+		return getCompletionBuf(prompt, chatdb, converation)
+	}
+}
+func getCompletionBuf(prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+	var temp = chatdb.Temperature
+	stopWord := []string{}
+	if chatdb.Stop != "" {
+		stopWord = append(stopWord, strings.Split(chatdb.Stop, ",")...)
+	}
+	messages := "" // "提示:你叫" + chatGptName + "。\n"
+
+	if len(chatdb.AiNickname) > 0 {
+		messages += "提示:你叫" + chatdb.AiNickname + "。\n"
+	}
+	if len(converation.Messages) > 0 {
+		for _, message := range converation.Messages {
+
+			if message.Prompt != "" {
+				if len(chatdb.UserNickname) > 0 {
+					messages += chatdb.UserNickname + ": "
+				}
+				messages += message.Prompt + "\n\n"
+			}
+			if message.Completion != "" {
+				if len(chatdb.AiNickname) > 0 {
+					messages += chatdb.AiNickname + ": "
+				}
+				messages += message.Completion + "\n\n"
+			}
+		}
+	}
+	if len(chatdb.UserNickname) > 0 {
+		messages += chatdb.UserNickname + ": "
+	}
+	messages += prompt + "\n\n"
+	if len(chatdb.AiNickname) > 0 {
+		messages += chatdb.AiNickname + ": "
+	}
+
+	// content = "讲出你的名字"
+	request := CompletionRequest{
+		Model:            chatdb.Model, //"gpt-3.5-turbo",
+		Prompt:           messages,
+		Stream:           true,
+		Stop:             stopWord,
+		MaxTokens:        &chatdb.MaxTokens,
+		Temperature:      &temp,
+		TopP:             &chatdb.TopP,
+		PresencePenalty:  chatdb.PresencePenalty,
+		FrequencyPenalty: chatdb.FrequencyPenalty,
+		N:                &chatdb.N,
+	}
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(request)
+	if err != nil {
+		return buf, err
+	}
+	return buf, nil
+
+}
+func getChatBuf(prompt string, chatdb chatdb.ApiSetting, converation chatdb.Conversation) (bytes.Buffer, error) {
+	var temp = chatdb.Temperature
+	stopWord := []string{}
+	if chatdb.Stop != "" {
+		stopWord = append(stopWord, strings.Split(chatdb.Stop, ",")...)
+	}
+	messages := []Message{{Role: "system", Content: "you are assistant"}}
+	if len(converation.Messages) > 0 {
+		for _, message := range converation.Messages {
+			if message.Prompt != "" {
+				messages = append(messages, Message{Role: "user", Content: message.Prompt})
+			}
+			if message.Completion != "" {
+				messages = append(messages, Message{Role: "assistant", Content: message.Completion})
+			}
+		}
+	}
+	messages = append(messages, Message{Role: "user", Content: prompt})
+	// content = "讲出你的名字"
+	request := ChatRequest{
+		Model:            chatdb.Model, //"gpt-3.5-turbo",
+		Messages:         messages,
+		Stream:           true,
+		Stop:             stopWord,
+		MaxTokens:        &chatdb.MaxTokens,
+		Temperature:      &temp,
+		TopP:             &chatdb.TopP,
+		PresencePenalty:  chatdb.PresencePenalty,
+		FrequencyPenalty: chatdb.FrequencyPenalty,
+		N:                &chatdb.N,
+	}
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(request)
+	if err != nil {
+		return buf, err
+	}
+	return buf, nil
+}
+func processLine(isChat bool, line []byte) (string, error) {
+	if isChat {
+		return processChatLine(line)
+	} else {
+		return processCompletionLine(line)
+	}
+
+}
+func processChatLine(line []byte) (string, error) {
+	text := ""
+	var res ChatResponse
+	err := json.Unmarshal(line, &res)
+	if err != nil {
+		// lastline = line
+		// fmt.Println("Error reading response:", err)
+		return "", err
+	}
+	if len(res.Choices) > 0 {
+		text = res.Choices[0].Delta.Content
+	} else {
+		if res.Error.Message != "" {
+			return "", errors.New(res.Error.Message)
+		}
+	}
+	return text, nil
+}
+
+func processCompletionLine(line []byte) (string, error) {
+	text := ""
+	var res CompletionResponse
+	err := json.Unmarshal(line, &res)
+	if err != nil {
+		// lastline = line
+		// fmt.Println("Error reading response:", err)
+		return "", err
+	}
+	if len(res.Choices) > 0 {
+		text = res.Choices[0].Text
+	} else {
+		if res.Error.Message != "" {
+			return "", errors.New(res.Error.Message)
+		}
+	}
+	return text, nil
 }
 
 func writeConversationId(w http.ResponseWriter, s string) {

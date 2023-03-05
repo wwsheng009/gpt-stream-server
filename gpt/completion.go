@@ -5,7 +5,7 @@ type CompletionRequest struct {
 	Model string `json:"model"`
 	// A list of string prompts to use.
 	// TODO there are other prompt types here for using token integers that we could add support for.
-	Prompt []string `json:"prompt"`
+	Prompt string `json:"prompt"`
 	// How many tokens to complete up to. Max of 512
 	MaxTokens *int `json:"max_tokens,omitempty"`
 	// Sampling temperature to use
@@ -46,6 +46,7 @@ type CompletionResponse struct {
 	Model   string                     `json:"model"`
 	Choices []CompletionResponseChoice `json:"choices"`
 	Usage   CompletionResponseUsage    `json:"usage"`
+	Error   *APIError                  `json:"error,omitempty"`
 }
 
 // CompletionResponseUsage is the object that returns how many tokens the completion's request used

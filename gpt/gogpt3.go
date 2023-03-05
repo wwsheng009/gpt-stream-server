@@ -13,6 +13,14 @@ import (
 	gogpt "github.com/sashabaranov/go-gpt3"
 )
 
+type RequestBody struct {
+	Prompt string `json:"prompt"`
+	Option struct {
+		ConversationId  string `json:"conversationId,omitempty"`
+		ParentMessageId string `json:"parentMessageId,omitempty"`
+	} `json:"options,omitempty"`
+}
+
 func StreamHandler(c *gin.Context) {
 	// 设置响应头
 	c.Writer.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
@@ -21,10 +29,16 @@ func StreamHandler(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 
 	// 读取请求体
-	var jsonBody = new(JsonBody)
+	var payload = new(RequestBody)
+	// b, err := io.ReadAll(c.Request.Body)
+	// if err != nil {
+	// 	println(err.Error())
+	// }
+	// println(string(b))
+
 	if c.Request.Method == "POST" {
 		// 解析JSON
-		err := c.ShouldBindJSON(jsonBody)
+		err := c.ShouldBindJSON(payload)
 		if err != nil {
 			// 处理错误
 			c.JSON(400, gin.H{"message": err.Error()})
@@ -32,25 +46,19 @@ func StreamHandler(c *gin.Context) {
 		}
 		//new conversation
 		var conversation chatdb.Conversation //{}
-		if jsonBody.Option.ConversationId == "" {
-			conversation = chatdb.CreateNewconversation(jsonBody.Prompt)
+		if payload.Option.ConversationId == "" {
+			conversation = chatdb.CreateNewconversation(payload.Prompt)
 		} else {
-			conversation = chatdb.FindConversationById(jsonBody.Option.ConversationId)
+			conversation = chatdb.FindConversationById(payload.Option.ConversationId)
 		}
-		processChat(c.Writer, c.Request, *jsonBody, conversation)
+		processRequest(c.Writer, c.Request, *payload, conversation)
 
+	} else {
+		c.JSON(403, gin.H{"message": errors.New("no support")})
 	}
 	// processComplete(c.Writer, c.Request)
 
 	// 处理请求
-}
-
-type JsonBody struct {
-	Prompt string `json:"prompt"`
-	Option struct {
-		ConversationId  string `json:"conversationId"`
-		ParentMessageId string `json:"parentMessageId"`
-	} `json:"options"`
 }
 
 func gpt3client(c *gin.Context) {
@@ -60,7 +68,7 @@ func gpt3client(c *gin.Context) {
 
 	ctx := context.Background()
 
-	var jsonBody = new(JsonBody)
+	var jsonBody = new(RequestBody)
 	if c.Request.Method == "POST" {
 		// 解析JSON
 		err := c.ShouldBindJSON(jsonBody)
