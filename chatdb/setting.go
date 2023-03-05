@@ -42,3 +42,10 @@ type ApiSetting struct {
 	UserNickname     string      `json:"user_nickname"`
 	N                int         `json:"n"`
 }
+
+func GetLastLines(arr []ConvMessage, num int) []ConvMessage {
+	if num >= len(arr) {
+		return arr
+	}
+	return arr[len(arr)-num:]
+}

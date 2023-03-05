@@ -6,6 +6,7 @@ import (
 )
 
 type YaoConversation struct {
+	Setting *ApiSetting
 }
 
 func (y *YaoConversation) LoadApiSetting() (*ApiSetting, error) {
@@ -19,6 +20,15 @@ func (y *YaoConversation) LoadApiSetting() (*ApiSetting, error) {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	if setting.MaxSendLines > 20 {
+		setting.MaxSendLines = 20
+	}
+	if setting.MaxSendLines < 1 {
+		setting.MaxSendLines = 1
+	}
+
+	y.Setting = &setting
 	return &setting, nil
 }
 
@@ -43,9 +53,11 @@ func (y *YaoConversation) FindConversationById(conversationId string) (*Conversa
 	conversation := Conversation{}
 	err = ConvertData(obj, &conversation)
 	if err != nil {
-		// panic(err.Error())
 		return nil, err
 	}
+
+	conversation.Messages = GetLastLines(conversation.Messages, y.Setting.MaxSendLines)
+
 	return &conversation, nil
 }
 

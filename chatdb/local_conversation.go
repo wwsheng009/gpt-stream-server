@@ -10,6 +10,7 @@ import (
 )
 
 type LocalConversation struct {
+	Setting *ApiSetting
 }
 
 const cacheLocation = "./data/cache"
@@ -26,32 +27,40 @@ func (l *LocalConversation) LoadApiSetting() (*ApiSetting, error) {
 	if err != nil {
 		return nil, err
 	}
+	if setting.MaxSendLines > 20 {
+		setting.MaxSendLines = 20
+	}
+	if setting.MaxSendLines < 1 {
+		setting.MaxSendLines = 1
+	}
+	l.Setting = &setting
 	return &setting, nil
 }
 
-func (l *LocalConversation) Save(uuid string, c *Conversation) {
+func (l *LocalConversation) Save(uuid string, c *Conversation) error {
 
 	fname := path.Join(cacheLocation, uuid) + ".json"
 	// Convert the struct to JSON
 	jsonData, err := json.Marshal(c)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	// Write the JSON data to a file
 	file, err := os.Create(fname)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 	defer file.Close()
 
 	_, err = file.Write(jsonData)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
+	return nil
 }
 func (l *LocalConversation) CreateNewconversation(title string) (*Conversation, error) {
 	err := makeFolder()
@@ -86,17 +95,32 @@ func (l *LocalConversation) FindConversationById(conversationId string) (*Conver
 		return nil, err
 	}
 
+	p.Messages = GetLastLines(p.Messages, l.Setting.MaxSendLines)
+
 	return &p, nil
 }
 
 func (l *LocalConversation) CreateNewMessage(conversation *Conversation, prompt string, answer string, seconds float64) error {
-	c, err := l.FindConversationById(conversation.ConversationId)
+	fname := path.Join(cacheLocation, conversation.ConversationId) + ".json"
+
+	var c Conversation
+	// Read the JSON data from the file
+	jsonData, err := os.ReadFile(fname)
 	if err != nil {
 		return err
 	}
-	mes := ConvMessage{Prompt: prompt, Completion: answer}
+
+	err = json.Unmarshal(jsonData, &c)
+	if err != nil {
+		return err
+	}
+
+	mes := ConvMessage{Prompt: prompt, Completion: answer, Seconds: seconds}
 	c.Messages = append(c.Messages, mes)
-	l.Save(c.ConversationId, c)
+	err = l.Save(c.ConversationId, &c)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -10,8 +10,9 @@ type IConversation interface {
 }
 
 type ConvMessage struct {
-	Prompt     string `json:"prompt"`
-	Completion string `json:"completion"`
+	Prompt     string  `json:"prompt"`
+	Completion string  `json:"completion"`
+	Seconds    float64 `json:"seconds"`
 }
 type Conversation struct {
 	ConversationId string        `json:"uuid"`
