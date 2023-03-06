@@ -24,25 +24,13 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 
 	client := &http.Client{}
 
-	// golang add network proxy
-	// 创建一个HTTP客户端
-	if config.MainConfig.ProxyServer != "" {
-		// Set up the proxy URL
-		proxyUrl, _ := url.Parse(config.MainConfig.ProxyServer)
-		// Create the HTTP transport with the proxy and other options
-		transport := &http.Transport{
-			Proxy: http.ProxyURL(proxyUrl),
-		}
-		client.Transport = transport
-	}
-
 	// var chatdb = chatdb.LoadApiSetting()
 
 	isChat := false
-	url := "https://api.openai.com/v1/completions"
+	gpturl := "https://api.openai.com/v1/completions"
 	if strings.Contains(setting.Model, "gpt-3.5-turbo") {
 		isChat = true
-		url = "https://api.openai.com/v1/chat/completions"
+		gpturl = "https://api.openai.com/v1/chat/completions"
 	}
 
 	start := time.Now()
@@ -52,7 +40,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 		return
 	}
 	// 发送另一个Stream API的请求
-	req, err := http.NewRequest("POST", url, &buf)
+	req, err := http.NewRequest("POST", gpturl, &buf)
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		writeError(w, err)
@@ -62,12 +50,45 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+setting.ApiToken) //config.MainConfig.OpenaiKey)
 
+	transport := &http.Transport{
+		MaxIdleConns:        20,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     20 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	// golang add network proxy
+	// 创建一个HTTP客户端
+	if config.MainConfig.HttpProxy != "" {
+		// Set up the proxy URL
+		proxyUrl, err := url.Parse(config.MainConfig.HttpProxy)
+		if err != nil {
+			fmt.Println("Error parse proxy server:", err)
+			writeError(w, err)
+			return
+		}
+		// Create the HTTP transport with the proxy and other options
+		transport.Proxy = http.ProxyURL(proxyUrl)
+	} else {
+		proxyUrl, err := http.ProxyFromEnvironment(req)
+		if err != nil {
+			fmt.Println("Error parse proxy server:", err)
+			writeError(w, err)
+			return
+		}
+		transport.Proxy = http.ProxyURL(proxyUrl)
+	}
+
+	client.Transport = transport
+
 	resp, err := client.Do(req)
+
 	if err != nil {
 		fmt.Println("Error sending request:", err)
 		writeError(w, err)
 		return
 	}
+	defer req.Body.Close()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, err := io.ReadAll(resp.Body)
@@ -89,7 +110,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 		}
 	}
 	reader := bufio.NewReader(resp.Body)
-	defer resp.Body.Close()
 
 	// 从另一个Stream API的响应中读取数据并发送给客户端
 
