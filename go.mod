@@ -3,6 +3,8 @@ module gpt_stream_server
 go 1.20
 
 require (
+	github.com/elazarl/go-bindata-assetfs v1.0.1
+	github.com/gin-gonic/contrib v0.0.0-20221130124618-7e01895a63f2
 	github.com/gin-gonic/gin v1.9.0
 	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.5.1

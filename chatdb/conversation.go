@@ -1,6 +1,9 @@
 package chatdb
 
-import "gpt_stream_server/config"
+import (
+	"gpt_stream_server/config"
+	"strings"
+)
 
 type IConversation interface {
 	LoadApiSetting() (*ApiSetting, error)
@@ -23,8 +26,13 @@ type Conversation struct {
 
 func GetDefaultConversation() IConversation {
 	storage := config.MainConfig.Storage
-	if storage == "Yao" {
-		return &YaoConversation{}
+	if strings.ToLower(storage) == "local" {
+		return &LocalConversation{}
 	}
-	return &LocalConversation{}
+	return &YaoConversation{}
+}
+
+func IsLocal() bool {
+	storage := config.MainConfig.Storage
+	return strings.ToLower(storage) == "local"
 }

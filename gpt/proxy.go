@@ -2,6 +2,7 @@ package gpt
 
 import (
 	"bytes"
+	"gpt_stream_server/chatdb"
 	"gpt_stream_server/config"
 	"io/ioutil"
 	"net/http"
@@ -45,9 +46,9 @@ func _http_request(c *gin.Context) {
 
 // pass through the api request to api server
 func ApiProxy(c *gin.Context) {
-	path := c.Param("proxyPath")
-	if path == "/chat-process" && c.Request.Method == "POST" {
-		StreamHandler(c)
+	// path := c.Param("proxyPath")
+	if chatdb.IsLocal() {
+		println("local storage,return")
 		return
 	}
 	//其它的请求直接传到后端
@@ -77,8 +78,8 @@ func ApiProxy(c *gin.Context) {
 
 }
 
-func errorHandler(http.ResponseWriter, *http.Request, error) {
-	println("error handle")
+func errorHandler(res http.ResponseWriter, req *http.Request, err error) {
+	println("error handle:", err.Error())
 }
 func modifyResponse(*http.Response) error {
 	return nil

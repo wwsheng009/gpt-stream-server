@@ -58,9 +58,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	}
 	// golang add network proxy
 	// 创建一个HTTP客户端
-	if config.MainConfig.HttpProxy != "" {
+	if config.MainConfig.HttpsProxy != "" {
 		// Set up the proxy URL
-		proxyUrl, err := url.Parse(config.MainConfig.HttpProxy)
+		proxyUrl, err := url.Parse(config.MainConfig.HttpsProxy)
 		if err != nil {
 			fmt.Println("Error parse proxy server:", err)
 			writeError(w, err)
