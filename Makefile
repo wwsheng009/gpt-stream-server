@@ -18,5 +18,5 @@ bindata:
 	go-bindata -fs -pkg ui -o ui/bindata.go -prefix ".tmp/data/" .tmp/data/...
 
 release:
-	export CGO_ENABLED=0
-	go build
+	CGO_ENABLED=0 go build
+	
