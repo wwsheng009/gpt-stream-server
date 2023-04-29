@@ -19,6 +19,17 @@ func processRequest(w http.ResponseWriter, r *http.Request, option RequestBody,
 	converation *chatdb.Conversation, setting *chatdb.ApiSetting) {
 
 	prompt := option.Prompt
+
+	if option.Temperature > 0 {
+		setting.Temperature = option.Temperature
+	}
+	if option.Top_p > 0 {
+		setting.TopP = option.Top_p
+	}
+	if option.SystemMessage != "" {
+		setting.SystemMessage = option.SystemMessage
+	}
+
 	var dataPrefix = []byte("data: ")
 	var doneSequence = []byte("[DONE]")
 
@@ -178,6 +189,9 @@ func getCompletionBuf(prompt string, chatdb *chatdb.ApiSetting, converation *cha
 	if len(chatdb.AiNickname) > 0 {
 		messages += "提示:你叫" + chatdb.AiNickname + "。\n"
 	}
+	if chatdb.SystemMessage != "" {
+		messages += chatdb.SystemMessage + "\n"
+	}
 	if len(converation.Messages) > 0 {
 		for _, message := range converation.Messages {
 
@@ -225,12 +239,15 @@ func getCompletionBuf(prompt string, chatdb *chatdb.ApiSetting, converation *cha
 
 }
 func getChatBuf(prompt string, chatdb *chatdb.ApiSetting, converation *chatdb.Conversation) (bytes.Buffer, error) {
-	var temp = chatdb.Temperature
+	// var temp = chatdb.Temperature
 	stopWord := []string{}
 	if chatdb.Stop != "" {
 		stopWord = append(stopWord, strings.Split(chatdb.Stop, ",")...)
 	}
-	messages := []Message{{Role: "system", Content: "you are assistant"}}
+	if chatdb.SystemMessage == "" {
+		chatdb.SystemMessage = "you are assistant"
+	}
+	messages := []Message{{Role: "system", Content: chatdb.SystemMessage}}
 	if len(converation.Messages) > 0 {
 		for _, message := range converation.Messages {
 			if message.Prompt != "" {
@@ -249,7 +266,7 @@ func getChatBuf(prompt string, chatdb *chatdb.ApiSetting, converation *chatdb.Co
 		Stream:           true,
 		Stop:             stopWord,
 		MaxTokens:        &chatdb.MaxTokens,
-		Temperature:      &temp,
+		Temperature:      &chatdb.Temperature,
 		TopP:             &chatdb.TopP,
 		PresencePenalty:  chatdb.PresencePenalty,
 		FrequencyPenalty: chatdb.FrequencyPenalty,

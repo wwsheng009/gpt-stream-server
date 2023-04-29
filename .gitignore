@@ -6,3 +6,4 @@ gpt.config.json
 data/cache
 ./data/cache
 .tmp
+gpt_stream_server.exe

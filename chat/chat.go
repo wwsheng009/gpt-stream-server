@@ -43,10 +43,10 @@ func isNotEmptyString(str string) bool {
 
 func CurrentModel() string {
 	conv := chatdb.GetDefaultConversation()
-	setting, err := conv.LoadApiSetting()
+	_, err := conv.LoadApiSetting()
 	if err != nil {
-		return ""
+		panic("请设置gpt模型")
 	}
-
-	return setting.Model
+	return "ChatGPTAPI"
+	// return setting.Model
 }

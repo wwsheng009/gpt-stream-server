@@ -20,7 +20,8 @@ func (l *LocalConversation) LoadApiSetting() (*ApiSetting, error) {
 	data, err := os.ReadFile("./gpt.config.json")
 	if err != nil {
 		fmt.Println("Error reading file:", err)
-		return nil, err
+		panic(err)
+		// return nil, err
 	}
 	setting := ApiSetting{}
 	err = json.Unmarshal(data, &setting)

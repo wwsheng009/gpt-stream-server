@@ -22,6 +22,7 @@ func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
 }
 
 type ApiSetting struct {
+	SystemMessage    string      `json:"system_message,omitempty"`
 	AccessCount      int         `json:"access_count"`
 	AiNickname       string      `json:"ai_nickname"`
 	ApiToken         string      `json:"api_token"`

@@ -19,6 +19,9 @@ type RequestBody struct {
 		ConversationId  string `json:"conversationId,omitempty"`
 		ParentMessageId string `json:"parentMessageId,omitempty"`
 	} `json:"options,omitempty"`
+	SystemMessage string  `json:"systemMessage,omitempty"`
+	Temperature   float32 `json:"temperature,omitempty"`
+	Top_p         float32 `json:"top_p,omitempty"`
 }
 
 func StreamHandler(c *gin.Context) {
